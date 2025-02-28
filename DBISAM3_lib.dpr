@@ -367,14 +367,11 @@ begin
   end
 end;
 
-function ReadDBISAM3Permissions(aDatabasePath, aUserRef, aProjectRef: PChar):
+function ReadDBISAM3Permissions(aDatabasePath, aProjectDbPath, aUserRef, aProjectRef: PChar):
     PChar; stdcall;
 var
-  aFieldsForSQL: string;
+  companyRef: string;
   ResultString: AnsiString;
-  i, i1: Integer;
-  aFields, aBlobFields, aValues, aValuesForUpdate, aFieldsParams: TStringList;
-  aEmptyStream: TMemoryStream;
   aJSONArray, aJSON: ISuperObject;
   database: TDBISAMDatabase;
   dbSesion: TDBISAMSession;
@@ -385,6 +382,7 @@ begin
   try
     CreateDBComponents(aDatabasePath, database,  dbSesion, qAction, qAction1, qAction2);
     aJSONArray := SA([]);
+
     try
       with qAction1 do
         begin
@@ -398,21 +396,66 @@ begin
           Open;
           First;
 
-          while not Eof do
+          if RecordCount > 0 then
             begin
-              aJSON := SO;
+              while not Eof do
+                begin
+                  aJSON := SO;
 
-              aJSON.S['PermissionName'] := FieldByName('PermissionName').AsString;
-              aJSON.B['R'] := FieldByName('R').AsBoolean;
-              aJSON.B['W'] := FieldByName('W').AsBoolean;
-              aJSON.B['D'] := FieldByName('D').AsBoolean;
+                  aJSON.S['PermissionName'] := FieldByName('PermissionName').AsString;
+                  aJSON.B['R'] := FieldByName('R').AsBoolean;
+                  aJSON.B['W'] := FieldByName('W').AsBoolean;
+                  aJSON.B['D'] := FieldByName('D').AsBoolean;
 
-              aJSONArray.AsArray.Add(aJSON);
-              Next;
+                  aJSONArray.AsArray.Add(aJSON);
+                  Next;
+                end;
+            end
+          else
+            begin
+              Close;
+              SQL.Clear;
+              SQL.Add('Select CompanyRef from "'+aProjectDbPath+'\insp_ProjectTeam"');
+              SQL.Add('Where UserRef = :UserRef and CompanyRef <> null and Ref = null and Deleted <> True');
+              ParamByName('UserRef').AsString := aUserRef;
+              Open;
+              First;
+
+              if FieldByName('CompanyRef').AsString <> '' then
+                begin
+                  companyRef := FieldByName('CompanyRef').AsString;
+
+                  Close;
+                  SQL.Clear;
+                  SQL.Add('Select PermissionName, R, W, D from UserPermissions');
+                  SQL.Add('where UserRef = :UserRef and PermissionName = :PermissionName and ProjectRef = :ProjectRef and Deleted <> True');
+                  ParamByName('UserRef').AsString := companyRef;
+                  ParamByName('ProjectRef').AsString := aProjectRef;
+                  ParamByName('PermissionName').AsString := 'ASSETSMANAGEMENT';
+                  Open;
+                  First;
+
+                  if RecordCount > 0 then
+                    begin
+                      while not Eof do
+                        begin
+                          aJSON := SO;
+
+                          aJSON.S['PermissionName'] := FieldByName('PermissionName').AsString;
+                          aJSON.B['R'] := FieldByName('R').AsBoolean;
+                          aJSON.B['W'] := FieldByName('W').AsBoolean;
+                          aJSON.B['D'] := FieldByName('D').AsBoolean;
+
+                          aJSONArray.AsArray.Add(aJSON);
+                          Next;
+                        end;
+                    end;
+                end
+
             end;
         end;
 
-      WriteLog('Permissions result ' + aJSONArray.AsJson);
+      WriteLog('Permissions result ' + aJSONArray.AsJson  + '  companyRef =' + companyRef + '  aProjectDbPath =' + aProjectDbPath + '  aUserRef =' + aUserRef + '  aDatabasePath =' + aDatabasePath + '  aProjectRef =' + aProjectRef);
 
       ResultString := aJSONArray.AsJson;
       Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
@@ -571,6 +614,72 @@ begin
   end
 end;
 
+function GetQRCodeStatus(aDatabasePath, aTable, aRecordID: PChar):
+    PChar; stdcall;
+var
+  aFieldsForSQL: string;
+  ResultString: AnsiString;
+  i, i1: Integer;
+  aFields, aBlobFields, aValues, aValuesForUpdate, aFieldsParams: TStringList;
+  aEmptyStream: TMemoryStream;
+  database: TDBISAMDatabase;
+  dbSesion: TDBISAMSession;
+  qAction: TDBISAMQuery;
+  qAction1: TDBISAMQuery;
+  qAction2: TDBISAMQuery;
+begin
+  try
+    CreateDBComponents(aDatabasePath, database,  dbSesion, qAction, qAction1, qAction2);
+
+    try
+      with qAction1 do
+        begin
+          if FileExists(aDatabasePath + 'QRCodeControl.dat') then
+            begin
+              Close;
+              SQL.Clear;
+              SQL.Add('SELECT Key, OpenQRCode FROM QRCodeControl');
+              SQL.Add('Where Upper(Type) = :Type and RecordRef = :RecordRef and Deleted <> True');
+              ParamByName('Type').AsString := UpperCase(aTable);
+              ParamByName('RecordRef').AsString := aRecordID;
+              Open;
+
+              if FieldByName('Key').AsString <> '' then
+                begin
+                  if FieldByName('OpenQRCode').AsBoolean then
+                    ResultString := 'true'
+                  else
+                    ResultString := 'false';
+                end;
+            end;
+
+          if ResultString = '' then
+            begin
+
+            end;
+
+          Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+          StrPCopy(Result, ResultString);
+        end;
+    finally
+      database.Connected := False;
+      dbSesion.Free;
+      qAction.Free;
+      qAction1.Free;
+      qAction2.Free;
+      database.Free;
+    end;
+  except
+    on E : Exception do
+      begin
+        ResultString := E.Message;
+        Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+        StrPCopy(Result, ResultString);
+        WriteLog('Error GetSafetyFilePath main  ' + E.ClassName  + ' ' + E.Message);
+      end;
+  end
+end;
+
 exports
   SaveStringToFile;
 
@@ -585,6 +694,9 @@ exports
 
 exports
   GetSafetyFilePath;
+
+exports
+  GetQRCodeStatus;
 
 begin
 end.
