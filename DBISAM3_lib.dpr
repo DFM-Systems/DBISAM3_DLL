@@ -75,7 +75,7 @@ begin
   dbSesion.LockProtocol := lpPessimistic;
   dbSesion.KeepConnections := True;
   dbSesion.SessionName := aSesionName;
-  dbSesion.LockWaitTime := 1000;
+  dbSesion.LockWaitTime := 100;
   dbSesion.Active := True;
 
 
@@ -133,7 +133,7 @@ begin
     aValuesForUpdate := TStringList.Create;
     aEmptyStream := TMemoryStream.Create;
 
-    WriteLog(aRecordJson);
+    //WriteLog(aRecordJson);
     try
       //Getting list of table fields
       with qAction1 do
@@ -160,7 +160,7 @@ begin
                       if Fields.Fields[i].DataType = ftBlob then
                         begin
                           aBlobFields.Add(Fields.Fields[i].FieldName);
-                          WriteLog('Blob Field ' + Fields.Fields[i].FieldName);
+                         // WriteLog('Blob Field ' + Fields.Fields[i].FieldName);
                         end
         //              else if (Fields.Fields[i].DataType = ftMemo) and (Fields.Fields[i].FieldName = 'JSON') then
         //                begin
@@ -326,10 +326,10 @@ begin
         on E : Exception do
           begin
             database.Rollback;
-            if aAction = 'insert' then
-              WriteLog('WriteToDBISAM3 writing ' + aTable + ' ' + E.ClassName  + ' ' + E.Message + '  ' + qAction1.SQL.Text)
-            else
-              WriteLog('WriteToDBISAM3 updating ' + aTable + ' ' + E.ClassName  + ' ' + E.Message + '  ' + qAction2.SQL.Text);
+//            if aAction = 'insert' then
+//              WriteLog('WriteToDBISAM3 writing ' + aTable + ' ' + E.ClassName  + ' ' + E.Message + '  ' + qAction1.SQL.Text)
+//            else
+//              WriteLog('WriteToDBISAM3 updating ' + aTable + ' ' + E.ClassName  + ' ' + E.Message + '  ' + qAction2.SQL.Text);
 
             ResultString := 'failed';
             Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
@@ -455,7 +455,7 @@ begin
             end;
         end;
 
-      WriteLog('Permissions result ' + aJSONArray.AsJson  + '  companyRef =' + companyRef + '  aProjectDbPath =' + aProjectDbPath + '  aUserRef =' + aUserRef + '  aDatabasePath =' + aDatabasePath + '  aProjectRef =' + aProjectRef);
+      //WriteLog('Permissions result ' + aJSONArray.AsJson  + '  companyRef =' + companyRef + '  aProjectDbPath =' + aProjectDbPath + '  aUserRef =' + aUserRef + '  aDatabasePath =' + aDatabasePath + '  aProjectRef =' + aProjectRef);
 
       ResultString := aJSONArray.AsJson;
       Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
@@ -508,7 +508,7 @@ begin
               SQL.ADD('Alter Table Equipment Add IsVerified Boolean Default False;');
               ExecSQL;
               Close;
-              WriteLog('Table "' + aDatabasePath + 'Equipment" altered');
+              //WriteLog('Table "' + aDatabasePath + 'Equipment" altered');
             end;
         end;    
 
@@ -593,7 +593,7 @@ begin
             end;
 
 
-          WriteLog('GetSafetyFilePath result ' + ResultString);
+          //WriteLog('GetSafetyFilePath result ' + ResultString);
           Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
           StrPCopy(Result, ResultString);
         end;
@@ -655,7 +655,23 @@ begin
 
           if ResultString = '' then
             begin
+              if FileExists(aDatabasePath + 'WebSettings.dat') then
+                begin
+                  Close;
+                  SQL.Clear;
+                  SQL.Add('SELECT * FROM WebSettings');
+                  Open;
 
+                  if FindField('OpenQRCode') <> nil then
+                    begin
+                      if FieldByName('OpenQRCode').AsBoolean then
+                        ResultString := 'true'
+                      else
+                        ResultString := 'false';
+                    end
+                  else
+                    ResultString := 'No OpenQRCode field in WebSettings table.'
+                end;
             end;
 
           Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
@@ -675,7 +691,7 @@ begin
         ResultString := E.Message;
         Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
         StrPCopy(Result, ResultString);
-        WriteLog('Error GetSafetyFilePath main  ' + E.ClassName  + ' ' + E.Message);
+        WriteLog('Error GetQRCodeStatus  ' + E.ClassName  + ' ' + E.Message);
       end;
   end
 end;
