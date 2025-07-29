@@ -61,47 +61,131 @@ begin
   end;
 end;
 
+procedure WriteActionLog(aString, actionName: string);
+var
+  aList: TStringList;
+  aPath: string;
+begin
+  aList := TStringList.Create;
+  try
+    aPath := ExtractFilePath(GetModuleName(hInstance)) + 'DBISAM3_DLL_ACTIONS\';
+    if ForceDirectories(aPath) then
+      begin
+        aList.Text := aString;
+        aList.SaveToFile(aPath + actionName + FormatDateTime('yyyy-mm-dd_hh-nn-ss-zzz', Now) + '.txt');
+      end;
+  finally
+    aList.Free;
+  end;
+end;
+
 
 procedure CreateDBComponents(aDatabasePath: PChar; var database: TDBISAMDatabase; var
     dbSesion: TDBISAMSession; var qAction, qAction1, qAction2: TDBISAMQuery);
 var
   aSesionName: string;
-  aSeesionTempPath: string;
+  aSeesionTempPath, aPos: string;
 begin
-  aSesionName := EncryptU.GetGUIDU;
+  try
+    aPos := 'GetGUIDU';
+    aSesionName := EncryptU.GetGUIDU;
 
-  dbSesion := TDBISAMSession.Create(nil);
-  dbSesion.SessionType := stLocal;
-  dbSesion.LockProtocol := lpPessimistic;
-  dbSesion.KeepConnections := True;
-  dbSesion.SessionName := aSesionName;
-  dbSesion.LockWaitTime := 100;
-  dbSesion.Active := True;
+    aPos := 'TDBISAMSession.Create';
+    dbSesion := TDBISAMSession.Create(nil);
+    dbSesion.SessionType := stLocal;
+    dbSesion.LockProtocol := lpPessimistic;
+    dbSesion.KeepConnections := True;
+    dbSesion.SessionName := aSesionName;
+    dbSesion.LockWaitTime := 100;
+    dbSesion.Active := True;
 
+    aPos := 'TDBISAMDatabase.Create';
+    database := TDBISAMDatabase.Create(nil);
+    database.DatabaseName := EncryptU.GetGUIDU;
+    database.SessionName := aSesionName;
+    database.Directory := aDatabasePath; // database path
 
-  database := TDBISAMDatabase.Create(nil);
-  database.DatabaseName := EncryptU.GetGUIDU;
-  database.SessionName := aSesionName;
-  database.Directory := aDatabasePath; // database path
+    aPos := 'ExtractFilePath';
+    aSeesionTempPath := ExtractFilePath(GetModuleName(hInstance)) + 'DBISAM3_TEMP\';
 
-  aSeesionTempPath := ExtractFilePath(GetModuleName(hInstance)) + 'DBISAM3_TEMP\';
-  if ForceDirectories(aSeesionTempPath) then
-    database.Session.PrivateDir := aSeesionTempPath
-  else
-    database.Session.PrivateDir := aDatabasePath;
+    aPos := 'ForceDirectories';
+    if ForceDirectories(aSeesionTempPath) then
+      database.Session.PrivateDir := aSeesionTempPath
+    else
+      database.Session.PrivateDir := aDatabasePath;
 
-  database.KeepConnection := True;
-  database.Connected := True;
+    database.KeepConnection := True;
+    database.Connected := True;
 
-  qAction := TDBISAMQuery.Create(nil);
-  qAction.SessionName := aSesionName;
-  qAction.DatabaseName := database.DatabaseName;
-  qAction1 := TDBISAMQuery.Create(nil);
-  qAction1.SessionName := aSesionName;
-  qAction1.DatabaseName := database.DatabaseName;
-  qAction2 := TDBISAMQuery.Create(nil);
-  qAction2.SessionName := aSesionName;
-  qAction2.DatabaseName := database.DatabaseName;
+    aPos := 'qAction.Create';
+    qAction := TDBISAMQuery.Create(nil);
+    qAction.SessionName := aSesionName;
+    qAction.DatabaseName := database.DatabaseName;
+
+    aPos := 'qAction1.Create';
+    qAction1 := TDBISAMQuery.Create(nil);
+    qAction1.SessionName := aSesionName;
+    qAction1.DatabaseName := database.DatabaseName;
+
+    aPos := 'qAction2.Create';
+    qAction2 := TDBISAMQuery.Create(nil);
+    qAction2.SessionName := aSesionName;
+    qAction2.DatabaseName := database.DatabaseName;
+  except
+    on E : Exception do
+      begin
+        raise Exception.Create(E.Message + ' Position: ' + aPos);
+      end;
+  end;
+end;
+
+procedure CreateDBComponents_1(aDatabasePath: PChar; var database:
+    TDBISAMDatabase; var dbSesion: TDBISAMSession; var qAction: TDBISAMQuery);
+var
+  aSesionName: string;
+  aSeesionTempPath, aPos: string;
+begin
+  try
+    aPos := 'GetGUIDU';
+    aSesionName := EncryptU.GetGUIDU;
+
+    aPos := 'TDBISAMSession.Create';
+    dbSesion := TDBISAMSession.Create(nil);
+    dbSesion.SessionType := stLocal;
+    dbSesion.LockProtocol := lpPessimistic;
+    dbSesion.KeepConnections := True;
+    dbSesion.SessionName := aSesionName;
+    dbSesion.LockWaitTime := 100;
+    dbSesion.Active := True;
+
+    aPos := 'TDBISAMDatabase.Create';
+    database := TDBISAMDatabase.Create(nil);
+    database.DatabaseName := EncryptU.GetGUIDU;
+    database.SessionName := aSesionName;
+    database.Directory := aDatabasePath; // database path
+
+    aPos := 'ExtractFilePath';
+    aSeesionTempPath := ExtractFilePath(GetModuleName(hInstance)) + 'DBISAM3_TEMP\';
+
+    aPos := 'ForceDirectories';
+    if ForceDirectories(aSeesionTempPath) then
+      database.Session.PrivateDir := aSeesionTempPath
+    else
+      database.Session.PrivateDir := aDatabasePath;
+
+    database.KeepConnection := True;
+    database.Connected := True;
+
+    aPos := 'qAction.Create';
+    qAction := TDBISAMQuery.Create(nil);
+    qAction.SessionName := aSesionName;
+    qAction.DatabaseName := database.DatabaseName;
+  except
+    on E : Exception do
+      begin
+        raise Exception.Create('CreateDBComponents_1: ' + E.Message + ' Position: ' + aPos);
+      end;
+  end;
 end;
 
 function WriteToDBISAM3(aAction, aDatabasePath, aTable, idFieldName,
@@ -319,7 +403,9 @@ begin
 
         database.Commit;
 
+
         ResultString := 'OK';
+        WriteActionLog('WriteToDBISAM3 result ' + ResultString, 'WriteToDBISAM3');
         Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
         StrPCopy(Result, ResultString);
       except
@@ -338,19 +424,18 @@ begin
           end;
       end;
     finally
+      FreeAndNil(qAction);
+      FreeAndNil(qAction1);
+      FreeAndNil(qAction2);
+      FreeAndNil(database);
+      FreeAndNil(dbSesion);
+
       aFields.Free;
       aBlobFields.Free;
       aFieldsParams.Free;
       aValues.Free;
       aValuesForUpdate.Free;
       aEmptyStream.Free;
-
-      database.Connected := False;
-      database.Free;
-      dbSesion.Free;
-      qAction.Free;
-      qAction1.Free;
-      qAction2.Free;
     end;
   except
     on E : Exception do
@@ -362,7 +447,7 @@ begin
 
         Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
         StrPCopy(Result, ResultString);
-        WriteLog('WriteToDBISAM3 main ' + aTable + ' ' + E.ClassName  + ' ' + E.Message);
+        WriteLog('WriteToDBISAM3 main ' + aTable + ' ' + E.ClassName  + ' ' + E.Message  + '  ' + aRecordJson);
       end;
   end
 end;
@@ -458,15 +543,15 @@ begin
       //WriteLog('Permissions result ' + aJSONArray.AsJson  + '  companyRef =' + companyRef + '  aProjectDbPath =' + aProjectDbPath + '  aUserRef =' + aUserRef + '  aDatabasePath =' + aDatabasePath + '  aProjectRef =' + aProjectRef);
 
       ResultString := aJSONArray.AsJson;
+      WriteActionLog('ReadDBISAM3Permissions result ' + ResultString, 'ReadDBISAM3Permissions');
       Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
       StrPCopy(Result, ResultString);
     finally
-      database.Connected := False;
-      dbSesion.Free;
-      qAction.Free;
-      qAction1.Free;
-      qAction2.Free;
-      database.Free;
+      FreeAndNil(qAction);
+      FreeAndNil(qAction1);
+      FreeAndNil(qAction2);
+      FreeAndNil(database);
+      FreeAndNil(dbSesion);
     end;
   except
     on E : Exception do
@@ -510,18 +595,18 @@ begin
               Close;
               //WriteLog('Table "' + aDatabasePath + 'Equipment" altered');
             end;
-        end;    
+        end;
 
       ResultString := 'OK';
+      WriteActionLog('UpdateDBISAM3EquipmentTable result ' + ResultString, 'UpdateDBISAM3EquipmentTable');
       Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
       StrPCopy(Result, ResultString);
     finally
-      database.Connected := False;
-      dbSesion.Free;
-      qAction.Free;
-      qAction1.Free;
-      qAction2.Free;
-      database.Free;
+      FreeAndNil(qAction);
+      FreeAndNil(qAction1);
+      FreeAndNil(qAction2);
+      FreeAndNil(database);
+      FreeAndNil(dbSesion);
     end;
   except
     on E : Exception do
@@ -535,81 +620,94 @@ end;
 function GetSafetyFilePath(aDatabasePath, aTable, aRecordID: PChar):
     PChar; stdcall;
 var
-  aFieldsForSQL: string;
   ResultString: AnsiString;
   i, i1: Integer;
-  aFields, aBlobFields, aValues, aValuesForUpdate, aFieldsParams: TStringList;
-  aEmptyStream: TMemoryStream;
   database: TDBISAMDatabase;
   dbSesion: TDBISAMSession;
   qAction: TDBISAMQuery;
-  qAction1: TDBISAMQuery;
-  qAction2: TDBISAMQuery;
+  aPos: string;
 begin
   try
-    CreateDBComponents(aDatabasePath, database,  dbSesion, qAction, qAction1, qAction2);
+    aPos := 'Creating DB Components';
+    CreateDBComponents_1(aDatabasePath, database,  dbSesion, qAction);
 
+    aPos := 'Run SQL';
     try
-      with qAction1 do
+      with qAction do
         begin
           Close;
           SQL.Clear;
 
           if LowerCase(aTable) = 'documents' then
             begin
+              aPos := 'Run SQL: add sql string for documents table';
               SQL.Add('Select PDFLink, Subfolder from '+aTable+'');
               SQL.Add('where DocumentID = :aRecordID');
               ParamByName('aRecordID').AsInteger := StrToInt(aRecordID);
+              aPos := 'Run SQL: open documents table';
               Open;
 
+              aPos := 'Run SQL: write results of documents table';
               ResultString := FieldByName('Subfolder').AsString + FieldByName('PDFLink').AsString;
             end
           else if LowerCase(aTable) = 'drawings' then
             begin
+              aPos := 'Run SQL: add sql string for drawings table';
               SQL.Add('Select Link as PDFLink, Subfolder from '+aTable+'');
               SQL.Add('where DrawingID = :aRecordID');
               ParamByName('aRecordID').AsInteger := StrToInt(aRecordID);
+              aPos := 'Run SQL: open drawings table';
               Open;
 
+              aPos := 'Run SQL: write results of drawings table';
               ResultString := FieldByName('Subfolder').AsString + FieldByName('PDFLink').AsString;
             end
           else if LowerCase(aTable) = LowerCase('WorkOrdersAttachments') then
             begin
+              aPos := 'Run SQL: add sql string for WorkOrdersAttachments table';
               SQL.Add('Select FilePath from '+aTable+'');
               SQL.Add('where ID = :aRecordID');
               ParamByName('aRecordID').AsInteger := StrToInt(aRecordID);
+              aPos := 'Run SQL: open WorkOrdersAttachments table';
               Open;
 
+              aPos := 'Run SQL: write results of WorkOrdersAttachments table';
               ResultString := FieldByName('FilePath').AsString;
             end
           else if LowerCase(aTable) = LowerCase('commentAttachments') then
             begin
+              aPos := 'Run SQL: add sql string for commentAttachments table';
               SQL.Add('Select FilePath from '+aTable+'');
               SQL.Add('where CommentRef = :CommentRef');
               ParamByName('CommentRef').AsString := aRecordID;
+              aPos := 'Run SQL: open commentAttachments table';
               Open;
 
+              aPos := 'Run SQL: write results of commentAttachments table';
               ResultString := FieldByName('FilePath').AsString;
             end;
 
-
           //WriteLog('GetSafetyFilePath result ' + ResultString);
+          WriteActionLog('GetSafetyFilePath result ' + ResultString, 'GetSafetyFilePath');
+          aPos := 'Return Result';
           Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
           StrPCopy(Result, ResultString);
+          aPos := 'Free Resources';
         end;
     finally
-      database.Connected := False;
-      dbSesion.Free;
-      qAction.Free;
-      qAction1.Free;
-      qAction2.Free;
-      database.Free;
+      FreeAndNil(qAction);
+      FreeAndNil(database);
+      FreeAndNil(dbSesion);
     end;
   except
     on E : Exception do
       begin
         Result := '';
-        WriteLog('Error GetSafetyFilePath main  ' + E.ClassName  + ' ' + E.Message);
+        WriteLog('Error GetSafetyFilePath main  ' + E.ClassName  + ' ' + E.Message + #13#10 +
+          'Params: DBPath ' + aDatabasePath + #13#10 +
+          'Table ' + aTable + #13#10 +
+          'RecordID ' +  aRecordID + #13#10 +
+          'Error Position: ' + aPos);
       end;
   end
 end;
@@ -674,16 +772,16 @@ begin
                 end;
             end;
 
+          WriteActionLog('GetQRCodeStatus result ' + ResultString, 'GetQRCodeStatus');
           Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
           StrPCopy(Result, ResultString);
         end;
     finally
-      database.Connected := False;
-      dbSesion.Free;
-      qAction.Free;
-      qAction1.Free;
-      qAction2.Free;
-      database.Free;
+      FreeAndNil(qAction);
+      FreeAndNil(qAction1);
+      FreeAndNil(qAction2);
+      FreeAndNil(database);
+      FreeAndNil(dbSesion);
     end;
   except
     on E : Exception do
@@ -692,6 +790,92 @@ begin
         Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
         StrPCopy(Result, ResultString);
         WriteLog('Error GetQRCodeStatus  ' + E.ClassName  + ' ' + E.Message);
+      end;
+  end
+end;
+
+function GetTableInfo(aProjectDbPath, aTable: PChar):
+    PChar; stdcall;
+var
+  companyRef: string;
+  ResultString: AnsiString;
+  aJSON: ISuperObject;
+  database: TDBISAMDatabase;
+  dbSesion: TDBISAMSession;
+  qAction: TDBISAMQuery;
+  qAction1: TDBISAMQuery;
+  qAction2: TDBISAMQuery;
+begin
+  try
+    CreateDBComponents(aProjectDbPath, database, dbSesion, qAction, qAction1, qAction2);
+    aJSON := SO;
+
+    try
+      if not FileExists(aProjectDbPath + '\' + aTable + '.dat') then
+        begin
+          ResultString := 'NoTable';
+          Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+          StrPCopy(Result, ResultString);
+          Exit;
+        end;
+
+      with qAction do
+        begin
+          aJSON.S['TableName'] := aTable;
+
+          if UpperCase(aTable) = UpperCase('DatabaseInfo') then
+            begin
+              Close;
+              SQL.Clear;
+              SQL.Add('SELECT Version FROM '+aTable+'');
+              Open;
+              Last;
+              aJSON.S['DatabaseVersion'] := FieldByName('Version').AsString;
+            end
+          else
+            begin
+              Close;
+              SQL.Clear;
+              SQL.Add('SELECT Count(*) as Counted FROM '+aTable+'');
+              SQL.Add('WHERE Deleted <> True');
+              Open;
+
+              aJSON.I['RecordsCount'] := FieldByName('Counted').AsInteger;
+
+              SQL.Clear;
+              SQL.Add('SELECT Modified FROM '+aTable+'');
+              SQL.Add('WHERE Deleted <> True');
+              SQL.Add('ORDER BY Modified DESC');
+              SQL.Add('TOP 1');
+              Open;
+
+              if RecordCount > 0 then
+                aJSON.S['LastModified'] := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', FieldByName('Modified').AsDateTime)
+              else
+                aJSON.S['LastModified'] := '';
+            end;
+
+          Close;
+        end;
+
+      //WriteLog('Permissions result ' + aJSONArray.AsJson  + '  companyRef =' + companyRef + '  aProjectDbPath =' + aProjectDbPath + '  aUserRef =' + aUserRef + '  aDatabasePath =' + aDatabasePath + '  aProjectRef =' + aProjectRef);
+
+      ResultString := aJSON.AsJson;
+      WriteActionLog('GetTableInfo result ' + ResultString, 'GetTableInfo');
+      Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+      StrPCopy(Result, ResultString);
+    finally
+      FreeAndNil(qAction);
+      FreeAndNil(qAction1);
+      FreeAndNil(qAction2);
+      FreeAndNil(database);
+      FreeAndNil(dbSesion);
+    end;
+  except
+    on E : Exception do
+      begin
+        Result := '';
+        WriteLog('Error GetTableInfo main  ' + E.ClassName  + ' ' + E.Message + ' ' + aProjectDbPath + '  '+ aTable);
       end;
   end
 end;
@@ -713,6 +897,9 @@ exports
 
 exports
   GetQRCodeStatus;
+
+exports
+  GetTableInfo;
 
 begin
 end.
