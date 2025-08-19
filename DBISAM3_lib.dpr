@@ -16,6 +16,7 @@ uses
   DB,
   DBISAMTb,
   superobject,
+  DateUtils,
   EncryptU in '..\Common Code\Classes\EncryptU.pas';
 
 {$R *.res}
@@ -880,6 +881,167 @@ begin
   end
 end;
 
+function ExportTableToCSV(aProjectDbPath, aTable, outputFolder, typesList: PChar):
+    PChar; stdcall;
+var
+  ResultString: AnsiString;
+  database: TDBISAMDatabase;
+  dbSesion: TDBISAMSession;
+  qAction: TDBISAMQuery;
+  outputFile: string;
+  aList: TStringList;
+begin
+  try
+    CreateDBComponents_1(aProjectDbPath, database,  dbSesion, qAction);
+    outputFile := outputFolder + '\' + aTable + '.csv';
+
+    try
+      if not FileExists(aProjectDbPath + '\' + aTable + '.dat') then
+        begin
+          WriteLog('Error ExportTableToCSV main  ' + ' ' + aProjectDbPath + '  '+ aTable);
+          ResultString := 'NoTable';
+          Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+          StrPCopy(Result, ResultString);
+          Exit;
+        end;
+
+      with qAction do
+        begin
+          Close;
+          SQL.Clear;
+
+          SQL.Add('SELECT * FROM '+aTable+'');
+          SQL.Add('WHERE Deleted <> True');
+
+          if typesList <> '' then
+            begin
+              SQL.Add('and Modified > :Modified and Type in ('+typesList+')');
+              ParamByName('Modified').AsDateTime := IncDay(Now, -14);
+            end;
+
+          Open;
+
+          ExportTable(
+            outputFile,
+            ',',
+            True,
+            nil,
+            'yyyy-mm-dd',
+            'HH:mm:ss.zzz'
+          );
+
+          Close;
+
+          if UpperCase(aTable) = 'INSP_FORMS' then
+            begin
+              aList := TStringList.Create;
+              try
+                aList.LoadFromFile(outputFile);
+                aList.Text := StringReplace(aList.Text, ',RecordID,', ',_RecordID,', [rfReplaceAll, rfIgnoreCase]);
+                aList.SaveToFile(outputFile);
+              finally
+                aList.Free;
+              end;
+            end;
+        end;
+
+      ResultString := 'OK';
+      WriteActionLog('ExportTableToCSV result ' + ResultString, 'ExportTableToCSV');
+      Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+      StrPCopy(Result, ResultString);
+    finally
+      FreeAndNil(qAction);
+      FreeAndNil(database);
+      FreeAndNil(dbSesion);
+    end;
+  except
+    on E : Exception do
+      begin
+        Result := '';
+        WriteLog('Error ExportTableToCSV main  ' + E.ClassName  + ' ' + E.Message + ' ' + aProjectDbPath + '  '+ aTable);
+      end;
+  end
+end;
+
+function ExportFormsToCSV(aProjectDbPath, aTable, outputFolder, filterString,
+    olderRecordsThanDays: PChar): PChar; stdcall;
+var
+  ResultString: AnsiString;
+  database: TDBISAMDatabase;
+  dbSesion: TDBISAMSession;
+  qAction: TDBISAMQuery;
+  outputFile: string;
+  aList: TStringList;
+  aSQLString: string;
+begin
+  try
+    CreateDBComponents_1(aProjectDbPath, database,  dbSesion, qAction);
+    outputFile := outputFolder + '\' + aTable + '.csv';
+
+    try
+      if not FileExists(aProjectDbPath + '\' + aTable + '.dat') then
+        begin
+          WriteLog('Error ExportTableToCSV main  ' + ' ' + aProjectDbPath + '  '+ aTable);
+          ResultString := 'NoTable';
+          Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+          StrPCopy(Result, ResultString);
+          Exit;
+        end;
+
+      with qAction do
+        begin
+          Close;
+          SQL.Clear;
+
+          SQL.Add('SELECT Key, Code, Replace(#10 with '' '' in  Replace(#13  with '' '' in Caption)) as Caption, Type, ProjectRef, Notify, Status, SourceRef, Created, Modified  FROM '+aTable+'');
+          SQL.Add('WHERE Deleted <> True');
+          SQL.Add('and Modified > :Modified '+filterString+'');
+          ParamByName('Modified').AsDateTime := IncDay(Now, StrToIntDef(olderRecordsThanDays, -10));
+          aSQLString := SQL.Text;
+          Open;
+
+          ExportTable(
+            outputFile,
+            ',',
+            True,
+            nil,
+            'yyyy-mm-dd',
+            'HH:mm:ss.zzz'
+          );
+
+          Close;
+
+          if UpperCase(aTable) = 'INSP_FORMS' then
+            begin
+              aList := TStringList.Create;
+              try
+                aList.LoadFromFile(outputFile);
+                aList.Text := StringReplace(aList.Text, ',RecordID,', ',_RecordID,', [rfReplaceAll, rfIgnoreCase]);
+                aList.SaveToFile(outputFile);
+              finally
+                aList.Free;
+              end;
+            end;
+        end;
+
+      ResultString := 'OK';
+      WriteActionLog('ExportFormsToCSV result ' + ResultString, 'ExportFormsToCSV' );
+      Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+      StrPCopy(Result, ResultString);
+    finally
+      FreeAndNil(qAction);
+      FreeAndNil(database);
+      FreeAndNil(dbSesion);
+    end;
+  except
+    on E : Exception do
+      begin
+        Result := '';
+        WriteLog('Error ExportFormsToCSV main  ' + E.ClassName  + ' ' + E.Message + ' ' + aProjectDbPath + '  '+ aTable +  #13+#10 + aSQLString);
+      end;
+  end
+end;
+
 exports
   SaveStringToFile;
 
@@ -900,6 +1062,12 @@ exports
 
 exports
   GetTableInfo;
+
+exports
+  ExportTableToCSV;
+
+exports
+  ExportFormsToCSV;
 
 begin
 end.
