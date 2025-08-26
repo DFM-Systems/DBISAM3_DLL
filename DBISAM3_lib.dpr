@@ -993,7 +993,7 @@ begin
           Close;
           SQL.Clear;
 
-          SQL.Add('SELECT Key, Code, Replace(#10 with '' '' in  Replace(#13  with '' '' in Caption)) as Caption, Type, ProjectRef, Notify, Status, SourceRef, Created, Modified  FROM '+aTable+'');
+          SQL.Add('SELECT Key, Code, Replace(#10 with '' '' in  Replace(#13  with '' '' in Caption)) as Caption, Type, ProjectRef, Notify, Status, SourceRef, Created, Modified, Date  FROM '+aTable+'');
           SQL.Add('WHERE Deleted <> True');
           SQL.Add('and Modified > :Modified '+filterString+'');
           ParamByName('Modified').AsDateTime := IncDay(Now, StrToIntDef(olderRecordsThanDays, -10));
