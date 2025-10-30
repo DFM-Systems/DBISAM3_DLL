@@ -89,7 +89,7 @@ var
 begin
   try
     aPos := 'GetGUIDU';
-    aSesionName := EncryptU.GetGUIDU;
+    aSesionName := 'S_' + EncryptU.GetGUIDU;
 
     aPos := 'TDBISAMSession.Create';
     dbSesion := TDBISAMSession.Create(nil);
@@ -102,7 +102,7 @@ begin
 
     aPos := 'TDBISAMDatabase.Create';
     database := TDBISAMDatabase.Create(nil);
-    database.DatabaseName := EncryptU.GetGUIDU;
+    database.DatabaseName := 'N_' + EncryptU.GetGUIDU;
     database.SessionName := aSesionName;
     database.Directory := aDatabasePath; // database path
 
@@ -148,10 +148,11 @@ var
 begin
   try
     aPos := 'GetGUIDU';
-    aSesionName := EncryptU.GetGUIDU;
+    aSesionName := 'S_' + EncryptU.GetGUIDU;
 
     aPos := 'TDBISAMSession.Create';
     dbSesion := TDBISAMSession.Create(nil);
+    dbSesion.Name := 'N_' + EncryptU.GetGUIDU;
     dbSesion.SessionType := stLocal;
     dbSesion.LockProtocol := lpPessimistic;
     dbSesion.KeepConnections := True;
@@ -161,7 +162,8 @@ begin
 
     aPos := 'TDBISAMDatabase.Create';
     database := TDBISAMDatabase.Create(nil);
-    database.DatabaseName := EncryptU.GetGUIDU;
+    database.Name := 'DB_' + EncryptU.GetGUIDU;
+    database.DatabaseName := 'S_' + EncryptU.GetGUIDU;
     database.SessionName := aSesionName;
     database.Directory := aDatabasePath; // database path
 
@@ -174,11 +176,12 @@ begin
     else
       database.Session.PrivateDir := aDatabasePath;
 
-    database.KeepConnection := True;
+    //database.KeepConnection := False;
     database.Connected := True;
 
     aPos := 'qAction.Create';
     qAction := TDBISAMQuery.Create(nil);
+    qAction.Name := 'Q_' + EncryptU.GetGUIDU;
     qAction.SessionName := aSesionName;
     qAction.DatabaseName := database.DatabaseName;
   except
@@ -425,6 +428,11 @@ begin
           end;
       end;
     finally
+      qAction.Close;
+      qAction1.Close;
+      qAction2.Close;
+      database.Connected := False;
+      dbSesion.Active := False;
       FreeAndNil(qAction);
       FreeAndNil(qAction1);
       FreeAndNil(qAction2);
@@ -548,6 +556,11 @@ begin
       Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
       StrPCopy(Result, ResultString);
     finally
+      qAction.Close;
+      qAction1.Close;
+      qAction2.Close;
+      database.Connected := False;
+      dbSesion.Active := False;
       FreeAndNil(qAction);
       FreeAndNil(qAction1);
       FreeAndNil(qAction2);
@@ -603,6 +616,11 @@ begin
       Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
       StrPCopy(Result, ResultString);
     finally
+      qAction.Close;
+      qAction1.Close;
+      qAction2.Close;
+      database.Connected := False;
+      dbSesion.Active := False;
       FreeAndNil(qAction);
       FreeAndNil(qAction1);
       FreeAndNil(qAction2);
@@ -629,6 +647,16 @@ var
   aPos: string;
 begin
   try
+    {if (aRecordID = '138') and (LowerCase(aTable) = LowerCase('WorkOrdersAttachments')) then
+      begin
+          ResultString := 'DFM12345654321\ATTACHMENTS\FEA96ACDCBF040B5BAF9AEC2D4070DC0\138\12345654321_DFM_Dormitory_Demo___Workorders_Report_2023-07-18 12-47-17-521.csv';
+          Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+          StrPCopy(Result, ResultString);
+          WriteActionLog('GetSafetyFilePath nothing '  + aDatabasePath + '  ' + aTable + '  ' +  aRecordID, 'GetSafetyFilePath_start');
+          Exit;
+      end;   }
+
+
     aPos := 'Creating DB Components';
     CreateDBComponents_1(aDatabasePath, database,  dbSesion, qAction);
 
@@ -666,9 +694,11 @@ begin
           else if LowerCase(aTable) = LowerCase('WorkOrdersAttachments') then
             begin
               aPos := 'Run SQL: add sql string for WorkOrdersAttachments table';
+
               SQL.Add('Select FilePath from '+aTable+'');
               SQL.Add('where ID = :aRecordID');
               ParamByName('aRecordID').AsInteger := StrToInt(aRecordID);
+
               aPos := 'Run SQL: open WorkOrdersAttachments table';
               Open;
 
@@ -696,6 +726,9 @@ begin
           aPos := 'Free Resources';
         end;
     finally
+      qAction.Close;
+      database.Connected := False;
+      dbSesion.Active := False;
       FreeAndNil(qAction);
       FreeAndNil(database);
       FreeAndNil(dbSesion);
@@ -778,6 +811,11 @@ begin
           StrPCopy(Result, ResultString);
         end;
     finally
+      qAction.Close;
+      qAction1.Close;
+      qAction2.Close;
+      database.Connected := False;
+      dbSesion.Active := False;
       FreeAndNil(qAction);
       FreeAndNil(qAction1);
       FreeAndNil(qAction2);
@@ -866,6 +904,11 @@ begin
       Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
       StrPCopy(Result, ResultString);
     finally
+      qAction.Close;
+      qAction1.Close;
+      qAction2.Close;
+      database.Connected := False;
+      dbSesion.Active := False;
       FreeAndNil(qAction);
       FreeAndNil(qAction1);
       FreeAndNil(qAction2);
@@ -950,6 +993,9 @@ begin
       Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
       StrPCopy(Result, ResultString);
     finally
+      qAction.Close;
+      database.Connected := False;
+      dbSesion.Active := False;
       FreeAndNil(qAction);
       FreeAndNil(database);
       FreeAndNil(dbSesion);
@@ -1029,6 +1075,9 @@ begin
       Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
       StrPCopy(Result, ResultString);
     finally
+      qAction.Close;
+      database.Connected := False;
+      dbSesion.Active := False;
       FreeAndNil(qAction);
       FreeAndNil(database);
       FreeAndNil(dbSesion);
@@ -1041,6 +1090,162 @@ begin
       end;
   end
 end;
+
+procedure CollectChildSystemIDs(const ParentID: string; Query: TDBISAMQuery;
+    UserList: TStringList; aTable: string);
+var
+  aQuery1: TDBISAMQuery;
+begin
+  with Query do
+  begin
+    SQL.Clear;
+    SQL.Add('SELECT Cast(SystemID as Char(32)) as SystemID, ParentID');
+    SQL.Add('FROM "' + aTable + '"');
+    SQL.Add('WHERE ParentID = :ParentID');
+    ParamByName('ParentID').AsString := ParentID;
+    Open;
+    aQuery1 := TDBISAMQuery.Create(nil);
+    aQuery1.SessionName := Query.SessionName;
+    try
+      First;
+      while not Eof do
+      begin
+        // Add current SystemID to the list
+        UserList.Add(FieldByName('SystemID').AsString);
+        // Recursively collect children of the current SystemID
+        CollectChildSystemIDs(FieldByName('SystemID').AsString, aQuery1, UserList, aTable);
+        Next;
+      end;
+    finally
+      Close;
+      aQuery1.Close;
+      aQuery1.Free;
+    end;
+  end;
+end;
+
+function GetSafetyFileSystemParents(aProjectDbPath, systemID, currentList:
+    PChar; accessValue: boolean): PChar; stdcall;
+var
+  companyRef: string;
+  ResultString: AnsiString;
+  database: TDBISAMDatabase;
+  dbSesion: TDBISAMSession;
+  qAction: TDBISAMQuery;
+  qAction1: TDBISAMQuery;
+  qAction2: TDBISAMQuery;
+  finished: Boolean;
+  aFinalList, aUserList: TStringList;
+  id, parentID: string;
+  i, idx: Integer;
+begin
+  try
+    CreateDBComponents(aProjectDbPath, database,  dbSesion, qAction, qAction1, qAction2);
+
+    aFinalList := TStringList.Create;
+    aUserList := TStringList.Create;
+    aUserList.Duplicates := dupIgnore;
+    finished := False;
+    try
+      aFinalList.CommaText := currentList;
+
+      with qAction do
+        begin
+          Close;
+          SQL.Clear;
+          SQL.Add('Select Cast(SystemID as Char(32)) as SystemID, ParentID from "'+aProjectDbPath+'\Systems"');
+          SQL.Add('where SystemID = :SystemID');
+          ParamByName('SystemID').AsInteger := StrToInt(systemID);
+          Open;
+
+          if FieldByName('SystemID').AsString = '' then
+            begin
+              ResultString := 'Error: Can''t find System';
+              Exit
+            end;
+
+          if accessValue then //User gets access to system and its parents
+            begin
+              parentID := FieldByName('ParentID').AsString;
+              aUserList.Add(FieldByName('SystemID').AsString);
+
+              while not finished do
+                begin
+                  SQL.Clear;
+                  SQL.Add('Select Cast(SystemID as Char(32)) as SystemID, ParentID from "'+aProjectDbPath+'\Systems"');
+                  SQL.Add('where SystemID = :SystemID');
+                  ParamByName('SystemID').AsInteger := StrToInt(parentID);
+                  Open;
+
+                  if FieldByName('SystemID').AsString = '' then
+                    begin
+                      if parentID <> '0' then
+                        aUserList.Add(parentID);
+
+                      finished := True;
+                    end
+                  else
+                    begin
+                      parentID := FieldByName('ParentID').AsString;
+                      aUserList.Add(FieldByName('SystemID').AsString);
+                    end;
+                end;
+
+              for i := 0 to aUserList.Count - 1 do
+                begin
+                  if aFinalList.IndexOf(aUserList[i]) = -1 then //Check for duplicates
+                    aFinalList.Add(aUserList[i]); //Add only if not already present
+                end;
+            end
+          else //Remove systems from user list
+            begin
+              id := FieldByName('SystemID').AsString;
+              aUserList.Add(FieldByName('SystemID').AsString);
+
+              CollectChildSystemIDs(id, qAction1, aUserList, aProjectDbPath+'\Systems');
+
+              for i := 0 to aUserList.Count - 1 do
+                begin
+                  idx := aFinalList.IndexOf(aUserList[i]);
+
+                  if idx <> -1 then //If ID exists in aFinalList
+                    aFinalList.Delete(idx); //Remove it
+                end;
+            end;
+
+          aFinalList.Sort;
+          ResultString := aFinalList.CommaText;
+        end;
+    finally
+      qAction.Close;
+      qAction1.Close;
+      qAction2.Close;
+      database.Connected := False;
+      dbSesion.Active := False;
+      FreeAndNil(qAction);
+      FreeAndNil(qAction1);
+      FreeAndNil(qAction2);
+      FreeAndNil(database);
+      FreeAndNil(dbSesion);
+      aFinalList.Free;
+      aUserList.Free;
+
+      WriteActionLog('GetSafetyFileSystems result ' + ResultString, 'GetSafetyFileSystems');
+      Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+      StrPCopy(Result, ResultString);
+    end;
+  except
+    on E : Exception do
+      begin
+        ResultString := 'Error: ' + E.Message;
+        Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+        StrPCopy(Result, ResultString);
+        WriteLog('Error GetSafetyFileSystems main  ' + E.ClassName  + ' ' + E.Message);
+      end;
+  end
+end;
+
+
 
 exports
   SaveStringToFile;
@@ -1068,6 +1273,9 @@ exports
 
 exports
   ExportFormsToCSV;
+
+exports
+  GetSafetyFileSystemParents;
 
 begin
 end.
