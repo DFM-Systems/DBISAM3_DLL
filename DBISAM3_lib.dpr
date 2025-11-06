@@ -21,6 +21,15 @@ uses
 
 {$R *.res}
 
+function DeleteTempFolder(aPath: string): Boolean; stdcall;
+begin
+  try
+    Result := RemoveDir(aPath);
+  except
+    Result := False;
+  end
+end;
+
 function SaveStringToFile(aString: PChar): Boolean; stdcall;
 var
   aList: TStringList;
@@ -93,6 +102,7 @@ begin
 
     aPos := 'TDBISAMSession.Create';
     dbSesion := TDBISAMSession.Create(nil);
+    dbSesion.Name := 'N_' + EncryptU.GetGUIDU;
     dbSesion.SessionType := stLocal;
     dbSesion.LockProtocol := lpPessimistic;
     dbSesion.KeepConnections := True;
@@ -102,12 +112,13 @@ begin
 
     aPos := 'TDBISAMDatabase.Create';
     database := TDBISAMDatabase.Create(nil);
+    database.Name := 'DB_' + EncryptU.GetGUIDU;
     database.DatabaseName := 'N_' + EncryptU.GetGUIDU;
     database.SessionName := aSesionName;
     database.Directory := aDatabasePath; // database path
 
     aPos := 'ExtractFilePath';
-    aSeesionTempPath := ExtractFilePath(GetModuleName(hInstance)) + 'DBISAM3_TEMP\';
+    aSeesionTempPath := ExtractFilePath(GetModuleName(hInstance)) + 'DBISAM3_TEMP\T' + EncryptU.GetGUIDU;
 
     aPos := 'ForceDirectories';
     if ForceDirectories(aSeesionTempPath) then
@@ -115,21 +126,24 @@ begin
     else
       database.Session.PrivateDir := aDatabasePath;
 
-    database.KeepConnection := True;
+    //database.KeepConnection := True;
     database.Connected := True;
 
     aPos := 'qAction.Create';
     qAction := TDBISAMQuery.Create(nil);
+    qAction.Name := 'Q_' + EncryptU.GetGUIDU;
     qAction.SessionName := aSesionName;
     qAction.DatabaseName := database.DatabaseName;
 
     aPos := 'qAction1.Create';
     qAction1 := TDBISAMQuery.Create(nil);
+    qAction1.Name := 'Q1_' + EncryptU.GetGUIDU;
     qAction1.SessionName := aSesionName;
     qAction1.DatabaseName := database.DatabaseName;
 
     aPos := 'qAction2.Create';
     qAction2 := TDBISAMQuery.Create(nil);
+    qAction2.Name := 'Q2_' + EncryptU.GetGUIDU;
     qAction2.SessionName := aSesionName;
     qAction2.DatabaseName := database.DatabaseName;
   except
@@ -168,7 +182,7 @@ begin
     database.Directory := aDatabasePath; // database path
 
     aPos := 'ExtractFilePath';
-    aSeesionTempPath := ExtractFilePath(GetModuleName(hInstance)) + 'DBISAM3_TEMP\';
+    aSeesionTempPath := ExtractFilePath(GetModuleName(hInstance)) + 'DBISAM3_TEMP\T' + EncryptU.GetGUIDU;
 
     aPos := 'ForceDirectories';
     if ForceDirectories(aSeesionTempPath) then
@@ -433,6 +447,7 @@ begin
       qAction2.Close;
       database.Connected := False;
       dbSesion.Active := False;
+      DeleteTempFolder(database.Session.PrivateDir);
       FreeAndNil(qAction);
       FreeAndNil(qAction1);
       FreeAndNil(qAction2);
@@ -561,6 +576,7 @@ begin
       qAction2.Close;
       database.Connected := False;
       dbSesion.Active := False;
+      DeleteTempFolder(database.Session.PrivateDir);
       FreeAndNil(qAction);
       FreeAndNil(qAction1);
       FreeAndNil(qAction2);
@@ -621,6 +637,7 @@ begin
       qAction2.Close;
       database.Connected := False;
       dbSesion.Active := False;
+      DeleteTempFolder(database.Session.PrivateDir);
       FreeAndNil(qAction);
       FreeAndNil(qAction1);
       FreeAndNil(qAction2);
@@ -729,6 +746,7 @@ begin
       qAction.Close;
       database.Connected := False;
       dbSesion.Active := False;
+      DeleteTempFolder(database.Session.PrivateDir);
       FreeAndNil(qAction);
       FreeAndNil(database);
       FreeAndNil(dbSesion);
@@ -816,6 +834,7 @@ begin
       qAction2.Close;
       database.Connected := False;
       dbSesion.Active := False;
+      DeleteTempFolder(database.Session.PrivateDir);
       FreeAndNil(qAction);
       FreeAndNil(qAction1);
       FreeAndNil(qAction2);
@@ -909,6 +928,7 @@ begin
       qAction2.Close;
       database.Connected := False;
       dbSesion.Active := False;
+      DeleteTempFolder(database.Session.PrivateDir);
       FreeAndNil(qAction);
       FreeAndNil(qAction1);
       FreeAndNil(qAction2);
@@ -996,6 +1016,7 @@ begin
       qAction.Close;
       database.Connected := False;
       dbSesion.Active := False;
+      DeleteTempFolder(database.Session.PrivateDir);
       FreeAndNil(qAction);
       FreeAndNil(database);
       FreeAndNil(dbSesion);
@@ -1078,6 +1099,7 @@ begin
       qAction.Close;
       database.Connected := False;
       dbSesion.Active := False;
+      DeleteTempFolder(database.Session.PrivateDir);
       FreeAndNil(qAction);
       FreeAndNil(database);
       FreeAndNil(dbSesion);
@@ -1222,6 +1244,7 @@ begin
       qAction2.Close;
       database.Connected := False;
       dbSesion.Active := False;
+      DeleteTempFolder(database.Session.PrivateDir);
       FreeAndNil(qAction);
       FreeAndNil(qAction1);
       FreeAndNil(qAction2);
