@@ -82,7 +82,7 @@ begin
     if ForceDirectories(aPath) then
       begin
         aList.Text := aString;
-        aList.SaveToFile(aPath + actionName + FormatDateTime('yyyy-mm-dd_hh-nn-ss-zzz', Now) + '.txt');
+        aList.SaveToFile(aPath + actionName + '_' + GetGUIDU + '_' + FormatDateTime('yyyy-mm-dd_hh-nn-ss-zzz', Now) + '.txt');
       end;
   finally
     aList.Free;
@@ -775,14 +775,15 @@ var
   database: TDBISAMDatabase;
   dbSesion: TDBISAMSession;
   qAction: TDBISAMQuery;
-  qAction1: TDBISAMQuery;
-  qAction2: TDBISAMQuery;
+//  qAction1: TDBISAMQuery;
+//  qAction2: TDBISAMQuery;
 begin
   try
-    CreateDBComponents(aDatabasePath, database,  dbSesion, qAction, qAction1, qAction2);
+    //CreateDBComponents(aDatabasePath, database,  dbSesion, qAction, qAction1, qAction2);
+    CreateDBComponents_1(aDatabasePath, database,  dbSesion, qAction);
 
     try
-      with qAction1 do
+      with qAction do
         begin
           if FileExists(aDatabasePath + 'QRCodeControl.dat') then
             begin
@@ -830,14 +831,14 @@ begin
         end;
     finally
       qAction.Close;
-      qAction1.Close;
-      qAction2.Close;
+//      qAction1.Close;
+//      qAction2.Close;
       database.Connected := False;
       dbSesion.Active := False;
       DeleteTempFolder(database.Session.PrivateDir);
       FreeAndNil(qAction);
-      FreeAndNil(qAction1);
-      FreeAndNil(qAction2);
+//      FreeAndNil(qAction1);
+//      FreeAndNil(qAction2);
       FreeAndNil(database);
       FreeAndNil(dbSesion);
     end;
@@ -1030,6 +1031,279 @@ begin
   end
 end;
 
+function ExportInstructionsToCSV(aProjectDbPath, aTable, outputFolder: PChar):
+    PChar; stdcall;
+var
+  ResultString: AnsiString;
+  database: TDBISAMDatabase;
+  dbSesion: TDBISAMSession;
+  qAction: TDBISAMQuery;
+  outputFile: string;
+  aList: TStringList;
+begin
+  try
+    CreateDBComponents_1(aProjectDbPath, database,  dbSesion, qAction);
+    outputFile := outputFolder + '\' + aTable + '.csv';
+
+    try
+      if not FileExists(aProjectDbPath + '\' + aTable + '.dat') then
+        begin
+          WriteLog('Error ExportInstructionsToCSV main  ' + ' ' + aProjectDbPath + '  '+ aTable);
+          ResultString := 'NoTable';
+          Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+          StrPCopy(Result, ResultString);
+          Exit;
+        end;
+
+      with qAction do
+        begin
+          Close;
+          SQL.Clear;
+
+          SQL.Add('SELECT * FROM '+aTable+'');
+          SQL.Add('WHERE PDFGeneratedOn = null and Command = :Command');
+          ParamByName('Command').AsString := 'GENPDF';
+          Open;
+
+          ExportTable(
+            outputFile,
+            ',',
+            True,
+            nil,
+            'yyyy-mm-dd',
+            'HH:mm:ss.zzz'
+          );
+
+          Close;
+        end;
+
+      ResultString := 'OK';
+      //WriteActionLog('ExportInstructionsToCSV result ' + ResultString, 'ExportInstructionsToCSV');
+      Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+      StrPCopy(Result, ResultString);
+    finally
+      qAction.Close;
+      database.Connected := False;
+      dbSesion.Active := False;
+      DeleteTempFolder(database.Session.PrivateDir);
+      FreeAndNil(qAction);
+      FreeAndNil(database);
+      FreeAndNil(dbSesion);
+    end;
+  except
+    on E : Exception do
+      begin
+        Result := '';
+        WriteLog('Error ExportInstructionsToCSV main  ' + E.ClassName  + ' ' + E.Message + ' ' + aProjectDbPath + '  '+ aTable);
+      end;
+  end
+end;
+
+function UpdateInstruction(aProjectDbPath, aTable, aKey, aMessage: PChar;
+    succsess: Boolean; howLongItTook: Integer): PChar; stdcall;
+var
+  ResultString: AnsiString;
+  database: TDBISAMDatabase;
+  dbSesion: TDBISAMSession;
+  qAction: TDBISAMQuery;
+  outputFile: string;
+  aList: TStringList;
+begin
+  try
+    CreateDBComponents_1(aProjectDbPath, database,  dbSesion, qAction);
+
+    try
+      if not FileExists(aProjectDbPath + '\' + aTable + '.dat') then
+        begin
+          WriteLog('Error ExportInstructionsToCSV main  ' + ' ' + aProjectDbPath + '  '+ aTable);
+          ResultString := 'NoTable';
+          Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+          StrPCopy(Result, ResultString);
+          Exit;
+        end;
+
+      with qAction do
+        begin
+          Close;
+          SQL.Clear;
+          SQL.Add('UPDATE '+aTable+' SET');
+
+          if succsess then
+            SQL.Add('PDFGeneratedOn = Current_Timestamp,')
+          else
+            SQL.Add('PDFGeneratedOn = null,');
+
+          SQL.Add('ProcessSeconds = :ProcessSeconds,');
+          SQL.Add('Notes = :Notes');
+          SQL.Add('WHERE Key = :Key');
+
+          ParamByName('ProcessSeconds').AsInteger := howLongItTook;
+          ParamByName('Notes').AsString := aMessage;
+          ParamByName('Key').AsString := aKey;
+          ExecSQL;
+
+          if RowsAffected = 1 then
+            ResultString := 'OK'
+          else
+            ResultString := 'Failed to Update';
+
+          Close;
+        end;
+
+     // WriteActionLog('UpdateInstruction result ' + ResultString, 'UpdateInstruction');
+      Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+      StrPCopy(Result, ResultString);
+    finally
+      qAction.Close;
+      database.Connected := False;
+      dbSesion.Active := False;
+      DeleteTempFolder(database.Session.PrivateDir);
+      FreeAndNil(qAction);
+      FreeAndNil(database);
+      FreeAndNil(dbSesion);
+    end;
+  except
+    on E : Exception do
+      begin
+        Result := '';
+        WriteLog('Error UpdateInstruction main  ' + E.ClassName  + ' ' + E.Message + ' ' + aProjectDbPath + '  '+ aTable);
+      end;
+  end
+end;
+
+function MarkInstruction(aProjectDbPath, aTable, aKey, anAction: PChar): PChar;
+    stdcall;
+var
+  ResultString: AnsiString;
+  database: TDBISAMDatabase;
+  dbSesion: TDBISAMSession;
+  qAction: TDBISAMQuery;
+  outputFile: string;
+  aList: TStringList;
+begin
+  try
+    CreateDBComponents_1(aProjectDbPath, database,  dbSesion, qAction);
+
+    try
+      if not FileExists(aProjectDbPath + '\' + aTable + '.dat') then
+        begin
+          WriteLog('Error ExportInstructionsToCSV main  ' + ' ' + aProjectDbPath + '  '+ aTable);
+          ResultString := 'NoTable';
+          Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+          StrPCopy(Result, ResultString);
+          Exit;
+        end;
+
+      with qAction do
+        begin
+          Close;
+          SQL.Clear;
+          SQL.Add('UPDATE '+aTable+' SET');
+
+          if anAction = 'zip' then
+            begin
+              SQL.Add('AddedToZip = True');
+              SQL.Add('WHERE Key = :Key');
+              ParamByName('Key').AsString := aKey;
+            end
+          else
+            begin
+              SQL.Add('EmailPrepared = True');
+              SQL.Add('WHERE Series = :Series');
+              ParamByName('Series').AsString := aKey;
+            end;
+
+          ExecSQL;
+
+          if RowsAffected > 0 then
+            ResultString := 'OK'
+          else
+            ResultString := 'Failed to Update';
+
+          Close;
+        end;
+
+     // WriteActionLog('UpdateInstruction result ' + ResultString, 'UpdateInstruction');
+      Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+      StrPCopy(Result, ResultString);
+    finally
+      qAction.Close;
+      database.Connected := False;
+      dbSesion.Active := False;
+      DeleteTempFolder(database.Session.PrivateDir);
+      FreeAndNil(qAction);
+      FreeAndNil(database);
+      FreeAndNil(dbSesion);
+    end;
+  except
+    on E : Exception do
+      begin
+        Result := '';
+        WriteLog('Error UpdateInstruction main  ' + E.ClassName  + ' ' + E.Message + ' ' + aProjectDbPath + '  '+ aTable);
+      end;
+  end
+end;
+
+function CheckIfInstructionHaveNewRecords(aProjectDbPath, aTable: PChar): PChar;
+    stdcall;
+var
+  ResultString: AnsiString;
+  database: TDBISAMDatabase;
+  dbSesion: TDBISAMSession;
+  qAction: TDBISAMQuery;
+  outputFile: string;
+  aList: TStringList;
+begin
+  try
+    CreateDBComponents_1(aProjectDbPath, database,  dbSesion, qAction);
+
+    try
+      if not FileExists(aProjectDbPath + '\' + aTable + '.dat') then
+        begin
+          WriteLog('Error ExportInstructionsToCSV main  ' + ' ' + aProjectDbPath + '  '+ aTable);
+          ResultString := 'NoTable';
+          Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+          StrPCopy(Result, ResultString);
+          Exit;
+        end;
+
+      with qAction do
+        begin
+          Close;
+          SQL.Clear;
+          SQL.Add('SELECT Key FROM '+aTable+'');
+          SQL.Add('WHERE PDFGeneratedOn = null TOP 1');
+          Open;
+
+          if FieldByName('Key').AsString <> '' then
+            ResultString := 'OK'
+          else
+            ResultString := 'No records';
+
+          Close;
+        end;
+
+     // WriteActionLog('UpdateInstruction result ' + ResultString, 'UpdateInstruction');
+      Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+      StrPCopy(Result, ResultString);
+    finally
+      qAction.Close;
+      database.Connected := False;
+      dbSesion.Active := False;
+      DeleteTempFolder(database.Session.PrivateDir);
+      FreeAndNil(qAction);
+      FreeAndNil(database);
+      FreeAndNil(dbSesion);
+    end;
+  except
+    on E : Exception do
+      begin
+        Result := '';
+        WriteLog('Error UpdateInstruction main  ' + E.ClassName  + ' ' + E.Message + ' ' + aProjectDbPath + '  '+ aTable);
+      end;
+  end
+end;
+
 function ExportFormsToCSV(aProjectDbPath, aTable, outputFolder, filterString,
     olderRecordsThanDays: PChar): PChar; stdcall;
 var
@@ -1109,6 +1383,92 @@ begin
       begin
         Result := '';
         WriteLog('Error ExportFormsToCSV main  ' + E.ClassName  + ' ' + E.Message + ' ' + aProjectDbPath + '  '+ aTable +  #13+#10 + aSQLString);
+      end;
+  end
+end;
+
+function ExportPunchlistsToCSV(aProjectDbPath, aTable, outputFolder, filterString,
+    olderRecordsThanDays: PChar): PChar; stdcall;
+var
+  ResultString: AnsiString;
+  database: TDBISAMDatabase;
+  dbSesion: TDBISAMSession;
+  qAction: TDBISAMQuery;
+  outputFile: string;
+  aList: TStringList;
+  aSQLString: string;
+begin
+  try
+    CreateDBComponents_1(aProjectDbPath, database,  dbSesion, qAction);
+    outputFile := outputFolder + '\' + aTable + '.csv';
+
+    try
+      if not FileExists(aProjectDbPath + '\' + aTable + '.dat') then
+        begin
+          WriteLog('Error ExportPunchlistsToCSV main  ' + ' ' + aProjectDbPath + '  '+ aTable);
+          ResultString := 'NoTable';
+          Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+          StrPCopy(Result, ResultString);
+          Exit;
+        end;
+
+      with qAction do
+        begin
+          Close;
+          SQL.Clear;
+
+          //F.Key, F.Code, F.Type, F.ProjectRef, F.Status, F.Notify
+
+          SQL.Add('SELECT Key, No as Code, Replace(#10 with '' '' in  Replace(#13  with '' '' in Title)) as Caption, Type, ProjectRef, ResponsibleRef as Notify, l.Description as Status, Created, Modified, Cast(Created as Date) as Date FROM '+aTable+'');
+          SQL.Add('LEFT OUTER JOIN Lookups l on l.ShortCode = Status and l.Category = ''STAT''');
+          SQL.Add('WHERE Deleted <> True');
+          SQL.Add('and Modified > :Modified '+filterString+'');
+          ParamByName('Modified').AsDateTime := IncDay(Now, StrToIntDef(olderRecordsThanDays, -10));
+          aSQLString := SQL.Text;
+          Open;
+
+          ExportTable(
+            outputFile,
+            ',',
+            True,
+            nil,
+            'yyyy-mm-dd',
+            'HH:mm:ss.zzz'
+          );
+
+          Close;
+
+//          if UpperCase(aTable) = UpperCase('insp_PlannedInspections') then
+//            begin
+//              aList := TStringList.Create;
+//              try
+//                aList.LoadFromFile(outputFile);
+//                aList.Text := StringReplace(aList.Text, ',RecordID,', ',_RecordID,', [rfReplaceAll, rfIgnoreCase]);
+//                aList.SaveToFile(outputFile);
+//              finally
+//                aList.Free;
+//              end;
+//            end;
+        end;
+
+      ResultString := 'OK';
+      WriteActionLog('ExportPunchlistsToCSV result ' + ResultString, 'ExportPunchlistsToCSV' );
+      Result := StrAlloc(Length(ResultString) + 1);  // Allocate memory
+      StrPCopy(Result, ResultString);
+    finally
+      qAction.Close;
+      database.Connected := False;
+      dbSesion.Active := False;
+      DeleteTempFolder(database.Session.PrivateDir);
+      FreeAndNil(qAction);
+      FreeAndNil(database);
+      FreeAndNil(dbSesion);
+    end;
+  except
+    on E : Exception do
+      begin
+        Result := '';
+        WriteLog('Error ExportPunchlistsToCSV main  ' + E.ClassName  + ' ' + E.Message + ' ' + aProjectDbPath + '  '+ aTable +  #13+#10 + aSQLString);
       end;
   end
 end;
@@ -1295,7 +1655,22 @@ exports
   ExportTableToCSV;
 
 exports
+  ExportInstructionsToCSV;
+
+exports
+  UpdateInstruction;
+
+exports
+  MarkInstruction;
+
+exports
+  CheckIfInstructionHaveNewRecords;
+
+exports
   ExportFormsToCSV;
+
+exports
+  ExportPunchlistsToCSV;
 
 exports
   GetSafetyFileSystemParents;
